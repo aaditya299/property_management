@@ -79,28 +79,56 @@ else:
     print("Database already contains data. Skipping insertion.\n")
 
 # GENERATING REPORT 
-print("generating Risk Assessment report. . .\n")
-query="""
-select t.tenant_name, t.payment_status,p.address
-from properties p
-inner join rentals r on p.property_id=r.property_id
-inner join tenants t on  t.rental_id=r.rental_id 
-where t.payment_status!="paid";"""
-cursor.execute(query)
-risk_records=cursor.fetchall()
-if risk_records:
-    for name, status, address in risk_records:
-        print(f"ALERT: Tenant '{name}' is '{status}' at property: {address}\n")
-else:
-    print("All accounts are up to date!\n")
-#connection.close()
+while True:
+    print("\n Real Estate Portfolio Management ")
+    print("1. View Risk Assessment Report")
+    print("2. View Financial Analytics Summary")
+    print("3. Exit Add a New Property")
+    print("4. Exit Application")
+    choice=input("Enter your choice(1-4): ")
+    if choice=="1":
+        print("generating Risk Assessment report. . .\n")
+        query="""
+        select t.tenant_name, t.payment_status,p.address
+        from properties p
+        inner join rentals r on p.property_id=r.property_id
+        inner join tenants t on  t.rental_id=r.rental_id 
+        where t.payment_status!="paid";"""
+        cursor.execute(query)
+        risk_records=cursor.fetchall()
+        if risk_records:
+            for name, status, address in risk_records:
+                print(f"ALERT: Tenant '{name}' is '{status}' at property: {address}\n")
+        else:
+            print("All accounts are up to date!\n")
+    #connection.close()
+    elif choice=='2':
+        print("Generating financial Analytics Report. . .\n")
+        cursor.execute("select sum(purchase_price) from properties;")
+        total_value=cursor.fetchone()[0]
+        cursor.execute("select sum(monthly_rent) from rentals where status='Occupied';")
+        total_rent=cursor.fetchone()[0]
+        print(f"Total Portfolio Value: ${total_value:,.2f}\n")
+        print(f"Total Monthly revenue: ${total_rent:,.2f}\n")
+    elif choice=='3':
+        print("\nAdda  New poperty to Portfolio")
+        p_type=input("Enter property type (Apartment/House/Commercial): ")
+        try:
+            p_price=float(input("Enter purchase price: $"))
+        except ValueError:
+            print("Invalid price!")
+            continue
+        p_address=input("Enter street address: ")
+        p_city=input("Enter city: ")
+        cursor.execute("""
+            insert into properties (property_type, purchase_price, address, city)
+            values (?,?,?,?);""",(p_type,p_price,p_address,p_city))
+        connection.commit()
+        print(f"Successfully added property at '{p_address}' to the database. ")
+    elif choice=='4':
+        print("Exiting application. GoodBye")
+        break
+    else:
+        print("Invalid option! enter a number between 1 and 3.")
 
-#
-print("Generating financial Analytics Report. . .\n")
-cursor.execute("select sum(purchase_price) from properties;")
-total_value=cursor.fetchone()[0]
-cursor.execute("select sum(monthly_rent) from rentals where status='Occupied';")
-total_rent=cursor.fetchone()[0]
-print(f"Total Portfolio Value: ${total_value:,.2f}\n")
-print(f"Total Monthly revenue: ${total_rent:,.2f}\ncd")
-
+connection.close()
