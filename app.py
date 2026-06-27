@@ -4,13 +4,13 @@ connection = sqlite3.connect("portfolio.db")
 cursor = connection.cursor()
 
 # drop tables for easy future tweaks/ add-ons
-cursor.execute("DROP TABLE IF EXISTS tenants;")   # temporary code
-cursor.execute("DROP TABLE IF EXISTS rentals;")   #tempporary code
-cursor.execute("DROP TABLE IF EXISTS properties;")#temporary code  
+# cursor.execute("DROP TABLE IF EXISTS tenants;")   # temporary code
+# cursor.execute("DROP TABLE IF EXISTS rentals;")   #tempporary code
+# cursor.execute("DROP TABLE IF EXISTS properties;")#temporary code  
 
 #CREATING TABLES
 cursor.execute(""" 
-CREATE TABLE properties (
+CREATE TABLE if not exists properties (
     property_id INTEGER PRIMARY KEY AUTOINCREMENT,
     property_type TEXT NOT NULL,
     purchase_price REAL NOT NULL CHECK(purchase_price >= 0),
@@ -21,7 +21,7 @@ CREATE TABLE properties (
 print("Properties table created successfully")
 
 cursor.execute("""
-CREATE TABLE rentals (
+CREATE TABLE if not exists rentals (
     rental_id INTEGER PRIMARY KEY AUTOINCREMENT,
     property_id INTEGER NOT NULL,
     monthly_rent REAL CHECK(monthly_rent >= 0),
@@ -32,7 +32,7 @@ CREATE TABLE rentals (
 print("Rentals table created successfully")
 
 cursor.execute("""
-CREATE TABLE tenants (
+CREATE TABLE if not exists tenants (
     tenant_id INTEGER PRIMARY KEY AUTOINCREMENT,
     rental_id INTEGER NOT NULL,
     tenant_name TEXT NOT NULL,
@@ -83,9 +83,10 @@ while True:
     print("\n Real Estate Portfolio Management ")
     print("1. View Risk Assessment Report")
     print("2. View Financial Analytics Summary")
-    print("3. Exit Add a New Property")
-    print("4. Exit Application")
-    choice=input("Enter your choice(1-4): ")
+    print("3. Add a New Property")
+    print("4. Create a Rental entry")
+    print("5. Exit Application")
+    choice=input("Enter your choice(1-5): ")
     if choice=="1":
         print("generating Risk Assessment report. . .\n")
         query="""
@@ -103,15 +104,29 @@ while True:
             print("All accounts are up to date!\n")
     #connection.close()
     elif choice=='2':
-        print("Generating financial Analytics Report. . .\n")
-        cursor.execute("select sum(purchase_price) from properties;")
-        total_value=cursor.fetchone()[0]
-        cursor.execute("select sum(monthly_rent) from rentals where status='Occupied';")
-        total_rent=cursor.fetchone()[0]
-        print(f"Total Portfolio Value: ${total_value:,.2f}\n")
-        print(f"Total Monthly revenue: ${total_rent:,.2f}\n")
+        print("\n Generating Financial Analytics Report...")
+        cursor.execute("SELECT SUM(purchase_price) FROM properties;")
+        total_value = cursor.fetchone()[0]
+
+        cursor.execute("SELECT SUM(monthly_rent) FROM rentals WHERE status = 'Occupied';")
+        realized_rent = cursor.fetchone()[0]
+
+        query_unleased = """
+        SELECT SUM(p.purchase_price) * 0.008 
+        FROM properties p
+        LEFT JOIN rentals r ON p.property_id = r.property_id
+        WHERE r.status IS NULL OR r.status = 'Vacant';
+        """
+        cursor.execute(query_unleased)
+        potential_unleased_rent = cursor.fetchone()[0] or 0.0
+
+        estimated_total_revenue = realized_rent + potential_unleased_rent
+
+        print(f"Total Portfolio Value:        ${total_value:,.2f}")
+        print(f"Current Realized Revenue:     ${realized_rent:,.2f}")
+        print(f"Estimated Revenue Capacity:   ${estimated_total_revenue:,.2f}")
     elif choice=='3':
-        print("\nAdda  New poperty to Portfolio")
+        print("\nAdd a  New poperty to Portfolio")
         p_type=input("Enter property type (Apartment/House/Commercial): ")
         try:
             p_price=float(input("Enter purchase price: $"))
@@ -126,9 +141,30 @@ while True:
         connection.commit()
         print(f"Successfully added property at '{p_address}' to the database. ")
     elif choice=='4':
+        print("Lease out an Unleased Property")
+        cursor.execute("select property_id, property_type, address from properties;")
+        properties=cursor.fetchall()
+        print("\nAvailable Properties : ")
+        for pid,ptype,addr in properties:
+            print(f"[{pid}] {ptype} - {addr}")
+        try:
+            target_id=int(input("\nEnter the Property ID you want to lease out: "))
+            rent_amount=float(input("Set the monthly rent amount: $"))
+        except ValueError:
+            print("Invalid entry")
+            continue
+        lease_status=input("Enter status (Occupied/Vacant):").strip()
+        cursor.execute("""
+        INSERT INTO rentals (property_id, monthly_rent, status)
+        VALUES (?, ?, ?);
+        """, (target_id, rent_amount, lease_status))
+        
+        connection.commit()
+        print(f"Property [{target_id}] has been updated with a lease rate of ${rent_amount:,.2f}.")
+    elif choice=='5':
         print("Exiting application. GoodBye")
         break
     else:
-        print("Invalid option! enter a number between 1 and 3.")
+        print("Invalid option! enter a number between 1 and 5.")
 
 connection.close()
