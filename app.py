@@ -2,10 +2,13 @@ import sqlite3
 
 connection = sqlite3.connect("portfolio.db")
 cursor = connection.cursor()
+
+# drop tables for easy future tweaks/ add-ons
 cursor.execute("DROP TABLE IF EXISTS tenants;")   # temporary code
 cursor.execute("DROP TABLE IF EXISTS rentals;")   #tempporary code
 cursor.execute("DROP TABLE IF EXISTS properties;")#temporary code  
 
+#CREATING TABLES
 cursor.execute(""" 
 CREATE TABLE properties (
     property_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,8 +41,9 @@ CREATE TABLE tenants (
 );
 """)
 print("Tenants table created successfully")
-
 # connection.close()
+
+# INSERTING TEMPORARY/SAMPLE DATA
 cursor.execute("select count(*) from properties;")
 if cursor.fetchone()[0]==0:
     print("database is empty. Inserting sample data. . .")
@@ -74,6 +78,7 @@ if cursor.fetchone()[0]==0:
 else:
     print("Database already contains data. Skipping insertion.\n")
 
+# GENERATING REPORT 
 print("generating Risk Assessment report. . .\n")
 query="""
 select t.tenant_name, t.payment_status,p.address
@@ -85,7 +90,17 @@ cursor.execute(query)
 risk_records=cursor.fetchall()
 if risk_records:
     for name, status, address in risk_records:
-        print(f"ALERT: Tenant '{name}' is '{status}' at property: {address}")
+        print(f"ALERT: Tenant '{name}' is '{status}' at property: {address}\n")
 else:
-    print("All accounts are up to date!")
-connection.close()
+    print("All accounts are up to date!\n")
+#connection.close()
+
+#
+print("Generating financial Analytics Report. . .\n")
+cursor.execute("select sum(purchase_price) from properties;")
+total_value=cursor.fetchone()[0]
+cursor.execute("select sum(monthly_rent) from rentals where status='Occupied';")
+total_rent=cursor.fetchone()[0]
+print(f"Total Portfolio Value: ${total_value:,.2f}\n")
+print(f"Total Monthly revenue: ${total_rent:,.2f}\ncd")
+
