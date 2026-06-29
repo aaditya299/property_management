@@ -106,10 +106,10 @@ while True:
     elif choice=='2':
         print("\n Generating Financial Analytics Report...")
         cursor.execute("SELECT SUM(purchase_price) FROM properties;")
-        total_value = cursor.fetchone()[0]
+        total_value = cursor.fetchone()[0] or 0.0
 
         cursor.execute("SELECT SUM(monthly_rent) FROM rentals WHERE status = 'Occupied';")
-        realized_rent = cursor.fetchone()[0]
+        realized_rent = cursor.fetchone()[0] or 0.0
 
         query_unleased = """
         SELECT SUM(p.purchase_price) * 0.008 
@@ -119,12 +119,24 @@ while True:
         """
         cursor.execute(query_unleased)
         potential_unleased_rent = cursor.fetchone()[0] or 0.0
-
         estimated_total_revenue = realized_rent + potential_unleased_rent
-
+        query_active_investment="""
+        select sum(p.purchase_price) from properties p
+        inner join rentals r on p.property_id=r.property_id 
+        where r.status='Occupied';"""
+        cursor.execute(query_active_investment)
+        active_investment_cost=cursor.fetchone()[0] or 0.0
+        if active_investment_cost>0:
+            annual_realized_income=realized_rent*12
+            cap_rate=(annual_realized_income/active_investment_cost)*100
+        else:
+            cap_rate=0.0
         print(f"Total Portfolio Value:        ${total_value:,.2f}")
         print(f"Current Realized Revenue:     ${realized_rent:,.2f}")
         print(f"Estimated Revenue Capacity:   ${estimated_total_revenue:,.2f}")
+        print("-"*45)
+        print(f"Portfolio Cap Rate(ROI):      {cap_rate:.2f}%")
+        print("-"*45)
     elif choice=='3':
         print("\nAdd a  New poperty to Portfolio")
         p_type=input("Enter property type (Apartment/House/Commercial): ")
